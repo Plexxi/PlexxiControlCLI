@@ -41,28 +41,94 @@ def defVLANName(vlan, name):
         print("Vlan not found", vlan)
         return 1
 
-def getPortVLAN(switchId=None, portId=0):
-  """ returns a JSON with all VLANs on specified switch/port
-  switchId - name, mac or uuid of switch
-  portId (integer) - hardware port number
-  JSON format {tag(integer):{Name:'string'}}"""
+def getPortVLAN(switchId, portId):
+    """ returns a JSON with all VLANs on specified switch/port
+    switchId - name, mac or uuid of switch
+    portId (integer) - hardware port number
+    JSON format {tag(integer):{Name:'string'}}"""
 
-  switch = findSwitchFromNameMacorUuid(switchId)
-  if not switch:
-    return
-  port = checkPortRange(portId)
-  if not port:
-    return
+    switch = findSwitchFromNameMacorUuid(switchId)
+    if not switch:
+        return
+    port = checkPortRange(portId)
+    if not port:
+        return
 
-  fabric = switch.getAllSwitchFabrics()
-  fabric1 = fabric[0]
-  ports = fabric1.getAllSwitchFabricInPorts()
-  port1 = ports[int(port)-1]
-  lag = port1.getLagInPort()
-  vlans = lag.getAllVlanInterfaces()
-  vlanJson = {}
-  for vlan in vlans:
-      vlanJson[vlan.getVlan()] = {}
-      vlanJson[vlan.getVlan()]['Name'] = vlan.getName()
-  return vlanJson
+    fabric = switch.getAllSwitchFabrics()
+    fabric1 = fabric[0]
+    ports = fabric1.getAllSwitchFabricInPorts()
+    for port in ports:
+        if int(port.getHwId()) == portId:
+            port1 = port
+            break
+    if not port1:
+        print 'Port not found'
+        return 1
+    lag = port1.getLagInPort()
+    vlans = lag.getAllVlanInterfaces()
+    vlanJson = {}
+    for vlan in vlans:
+        vlanJson[vlan.getVlan()] = {}
+        vlanJson[vlan.getVlan()]['Name'] = vlan.getName()
+    return vlanJson
 
+def defPortName(switchId, portId, name):
+    """ Gives the Switch port a user defined name
+    switchId (name, MAC or UUID)
+    port (integer) - hardware port ID
+    name (string) - name of port """
+
+    print 'Set port %s, %s'%(portId, name)
+
+    switch = findSwitchFromNameMacorUuid(switchId)
+    if not switch:
+        return
+    port = checkPortRange(portId)
+    if not port:
+        return
+
+    fabric = switch.getAllSwitchFabrics()
+    fabric1 = fabric[0]
+    port1 = None
+    ports = fabric1.getAllSwitchFabricInPorts()
+    for port in ports:
+        if int(port.getHwId()) == portId:
+            port1 = port
+            break
+    if not port1:
+        print 'Port not found'
+        return 1
+
+    print("Set Name Port", port1, name)
+    joby = Job.create(name="Set Name Port %s, %s"%(port , name))
+    joby.addUserSequentialGroupItem("port")
+    joby.begin()
+    port1.setName(name)
+    joby.commit()
+    return 0
+
+
+def getPortName(switchId, portId):
+    """ Get the Switch port name
+    switchId (name, MAC or UUID)
+    port (integer) - hardware port ID """
+
+    switch = findSwitchFromNameMacorUuid(switchId)
+    if not switch:
+        return
+    port = checkPortRange(portId)
+    if not port:
+        return
+
+    fabric = switch.getAllSwitchFabrics()
+    fabric1 = fabric[0]
+    port1 = None
+    ports = fabric1.getAllSwitchFabricInPorts()
+    for port in ports:
+        if int(port.getHwId()) == portId:
+            port1 = port
+            break
+    if not port1:
+        print 'Port not found'
+        return 1
+    return port1.getName()
